@@ -1,16 +1,20 @@
 #include "HAL.h"
+#include "SoftSerial.h"
 
 //- some macros for debugging ---------------------------------------------------------------------------------------------
 
 // todo: customize baudrate
 // remove mcu dependencies
 void dbgStart(void) {
+	dbg.begin();
+#if 0
 	power_serial_enable();														// enable the debuging port
 
 	if (!(UCSR & (1<<RXEN))) {													// check if serial was already set
 		dbg.begin(57600);
 		_delay_ms(500);
 	}
+#endif
 }
 //- -----------------------------------------------------------------------------------------------------------------------
 
@@ -24,6 +28,7 @@ void dbgStart(void) {
 
 
 
+static uint16_t wdtSleep_TIME;
 
 //- power management functions --------------------------------------------------------------------------------------------
 // http://donalmorrissey.blogspot.de/2010/04/sleeping-arduino-part-5-wake-up-via.html
@@ -101,6 +106,7 @@ void    addMillis(tMillis ms) {
 		milliseconds += ms;
 	}
 }
+
 ISR(ISR_VECT) {
 	++milliseconds;
 }

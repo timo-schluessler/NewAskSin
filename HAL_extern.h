@@ -7,6 +7,11 @@ void    ccInitHw(void) {
 	pinInput ( CC_GDO0_DDR, CC_GDO0_PIN );										// set GDO0 as input
 
 	SPCR = _BV(SPE) | _BV(MSTR);												// SPI enable, master, speed = CLK/4
+	//SPCR |= _BV(SPR1) | _BV(SPR0); // speed = CLK / 128
+	//SPCR |= _BV(SPR1); // speed = CLK / 64
+	//SPCR |= _BV(SPR0); // speed = CLK / 16
+	SPSR |= _BV(SPI2X); SPCR |= _BV(SPR0); // speed = CLK / 8
+	//SPCR |= 0; // speed = CLK / 4 - doesn't work
 
 	CC_GDO0_PCICR |= _BV(CC_GDO0_PCIE);											// set interrupt in mask active
 }
@@ -17,18 +22,19 @@ uint8_t ccSendByte(uint8_t data) {
 }
 uint8_t ccGetGDO0() {
 	uint8_t x = chkPCINT(CC_GDO0_PCIE, CC_GDO0_INT, 0);							// check PCINT without debouncing
-	//if (x>1) dbg << "x:" << x << '\n';
+	if (x>1)
+	dbg << F("GDO0 x:") << x << '\n';
 
 	if (x == 2 ) return 1;														// falling edge detected
 	else return 0;
 }
 
 void    enableGDO0Int(void) {
-	//dbg << "enable int\n";
+	dbg << F("enable GDO0 int\n");
 	CC_GDO0_PCMSK |=  _BV(CC_GDO0_INT);
 }
 void    disableGDO0Int(void) {
-	//dbg << "disable int\n";
+	dbg << F("disable GDO0 int\n");
 	CC_GDO0_PCMSK &= ~_BV(CC_GDO0_INT);
 }
 
@@ -86,6 +92,9 @@ uint8_t chkPCINT(uint8_t port, uint8_t pin, uint8_t debounce) {
 	uint8_t cur  = pcInt[port].cur  & _BV(pin);
 	uint8_t prev = pcInt[port].prev & _BV(pin);
 
+	//dbg << "cur/prev" << cur << prev << '\n';
+	//dbg << "cur/prev" << (pcInt[0].cur & _BV(PORTB1)) << (pcInt[1].cur & _BV(PORTB1)) << (pcInt[2].cur & _BV(PORTB1));
+
 	if ((cur == prev) || (debounce && ((getMillis() - pcInt[port].time) < DEBOUNCE ))) {		// old and new bit is similar, or DEBOUNCE time is running
 		return (pcInt[port].prev & _BV(pin)) ? 1 : 0;
 	}
@@ -112,6 +121,7 @@ uint8_t chkPCINT(uint8_t port, uint8_t pin, uint8_t debounce) {
  *** Config key related functions ***
  ************************************/
 
+#if 0
 /**
  * Initialize the config key.
  * Set port pin and register pin interrupt.
@@ -132,6 +142,7 @@ void    initConfKey(void) {
 	pcInt[1].cur = PINC;
 	pcInt[2].cur = PIND;
 }
+#endif
 
 //- -----------------------------------------------------------------------------------------------------------------------
 ISR (PCINT0_vect) {
@@ -161,6 +172,7 @@ void    switchExtBattMeasurement(uint8_t stat);
 /**
  * get the voltage off battery
  */
+ /*
 uint8_t  getBatteryVoltage(void) {
 	#if defined EXT_BATTERY_MEASUREMENT
 		initExtBattMeasurement();
@@ -184,7 +196,9 @@ uint8_t  getBatteryVoltage(void) {
 
 	return (uint8_t)adcValue;
 }
+*/
 
+#if 0
 /**
  * Initialize battery measurement pin for external battery measurement
  */
@@ -209,3 +223,4 @@ void    switchExtBattMeasurement(uint8_t stat) {
 		setPinHigh(BATT_MEASURE_PORT, BATT_MEASURE_PIN);						// switch on pull up, otherwise we waste energy over the resistor network against VCC
 	}
 }
+#endif

@@ -40,7 +40,9 @@ void    CC::init(void) {																// initialize CC1101
 	static const uint8_t initVal[] PROGMEM = {
 		CC1101_IOCFG2,    0x2E,	// 												// non inverted GDO2, high impedance tri state
 //		CC1101_IOCFG1,    0x2E,	// (default)									// low output drive strength, non inverted GD=1, high impedance tri state
-		CC1101_IOCFG0,    0x06,	// packet CRC ok								// disable temperature sensor, non inverted GDO0,
+		//CC1101_IOCFG0,    0x06,	// packet CRC ok. orignal				// disable temperature sensor, non inverted GDO0,
+		CC1101_IOCFG0,    0x07,	// this is packet CRC ok. try it								// disable temperature sensor, non inverted GDO0,
+		//CC1101_IOCFG0,    0x6f,	// 6f/2f: always high/low 
 		CC1101_FIFOTHR,   0x0D,													// 0 ADC retention, 0 close in RX, TX FIFO = 9 / RX FIFO = 56 byte
 		CC1101_SYNC1,     0xE9,													// Sync word
 		CC1101_SYNC0,     0xCA,
@@ -89,7 +91,7 @@ void    CC::init(void) {																// initialize CC1101
 	while (readReg(CC1101_MARCSTATE, CC1101_STATUS) != 1) {								// waits until module gets ready
 		_delay_us(1);
 		#ifdef CC_DBG																	// only if cc debug is set
-		dbg << '.';
+		dbg << '.' << readReg(CC1101_MARCSTATE, CC1101_STATUS) << '\n';
 		#endif
 	}
 
@@ -125,17 +127,26 @@ uint8_t CC::sndData(uint8_t *buf, uint8_t burst) {										// send data packet 
 
 	writeBurst(CC1101_TXFIFO, buf, buf[0]+1);											// write in TX FIFO
 
-	strobe(CC1101_SFRX);																// flush the RX buffer
+	// TODO should be unneccessary because we are idle and flushed already. strobe(CC1101_SFRX);																// flush the RX buffer
 	strobe(CC1101_STX);																	// send a burst
 
-	for(uint8_t i = 0; i < 200; i++) {													// after sending out all bytes the chip should go automatically in RX mode
-		if( readReg(CC1101_MARCSTATE, CC1101_STATUS) == MARCSTATE_RX)
+	uint8_t i;
+	for(i = 0; i < 200; i++) {													// after sending out all bytes the chip should go automatically in RX mode
+		_delay_us(10);
+		uint8_t state = readReg(CC1101_MARCSTATE, CC1101_STATUS);
+		if(state == MARCSTATE_RX)
 			break;																		//now in RX mode, good
-		if( readReg(CC1101_MARCSTATE, CC1101_STATUS) != MARCSTATE_TX) {
+		if(state != MARCSTATE_TX) {
+#ifdef CC_DBG
+			dbg << F("state is not MARCSTATE_TX!\n") << state;
+#endif
 			break;																		//neither in RX nor TX, probably some error
 		}
-		_delay_us(10);
 	}
+#ifdef CC_DBG
+	if (i == 200)
+		dbg << F("Timeout while waiting for MARCSTATE_RX!");
+#endif
 
 	#ifdef CC_DBG																		// only if cc debug is set
 	dbg << F("<- ") << _HEXB(buf[0]) << _HEXB(buf[1]) << '\n';//pTime();
@@ -165,10 +176,14 @@ uint8_t CC::rcvData(uint8_t *buf) {														// read data packet from RX FIF
 			uint8_t val = readReg(CC1101_RXFIFO, CC1101_CONFIG);						// read LQI and CRC_OK
 			lqi = val & 0x7F;
 			crc_ok = bitRead(val, 7);
+			dbg << F("crc is ") << crc_ok;
 	
 		}
 
-	} else buf[0] = 0;																	// nothing to do, or overflow
+	} else {
+		//dbg << "nothing to be received...\n";
+		buf[0] = 0;																	// nothing to do, or overflow
+	}
 
 	strobe(CC1101_SFRX);																// flush Rx FIFO
 	strobe(CC1101_SIDLE);																// enter IDLE state
@@ -186,7 +201,7 @@ void    CC::setIdle() {																	// put CC1101 into power-down state
 	strobe(CC1101_SIDLE);																// coming from RX state, we need to enter the IDLE state first
 	strobe(CC1101_SFRX);
 	strobe(CC1101_SPWD);																// enter power down state
-	//dbg << "pd\n";
+	dbg << F("CC1101 pd\n");
 }
 uint8_t CC::detectBurst(void) {		
 	// 10 7/10 5 in front of the received string; 33 after received string

@@ -6,7 +6,7 @@
 //- with a lot of support from martin876 at FHEM forum
 //- -----------------------------------------------------------------------------------------------------------------------
 
-//#define EE_DBG
+#define EE_DBG
 #include "EEprom.h"
 
 uint8_t MAID[3];
@@ -101,19 +101,22 @@ uint8_t  EE::getRegAddr(uint8_t cnl, uint8_t lst, uint8_t idx, uint8_t addr) {
 			return retByte;																// and exit
 		}
 	}
+	return addr;
 }
 uint32_t EE::getHMID(void) {
-	uint8_t a[3];
+	uint32_t id;
+	uint8_t * a = (uint8_t*)&id;
 	a[0] = HMID[2];
 	a[1] = HMID[1];
 	a[2] = HMID[0];
 	a[3] = 0;
 
-	return *(uint32_t*)&a;
+	return id;
 }
 
 // private:		//---------------------------------------------------------------------------------------------------------
 EE::EE() {
+	//clearEEPromBlock(0, 128); // to reset MAID
 }
 
 // general functions
@@ -153,9 +156,9 @@ void     EE::init(void) {
 	}
 
 	// load HMID and serial from eeprom
-	if (*(uint16_t*)&HMID == NULL) getEEPromBlock(2, 3, HMID);							// check if HMID variable is set and valid, otherwise load from eeprom
-	if (*(uint16_t*)&HMSR == NULL) getEEPromBlock(5, 10, HMSR);
-	if (*(uint16_t*)&HMKEY == NULL) getEEPromBlock(15, 16, HMKEY);
+	if (HMID[0] == 0 && HMID[1] == 0 && HMID[2] == 0) getEEPromBlock(2, 3, HMID);							// check if HMID variable is set and valid, otherwise load from eeprom
+	if (HMSR[0] == 0 && HMSR[1] == 0) getEEPromBlock(5, 10, HMSR);
+	if (HMKEY[0] == 0 && HMKEY[1] == 0) getEEPromBlock(15, 16, HMKEY);
 
 	// load the master id
 	getMasterID();
@@ -169,7 +172,7 @@ void     EE::getMasterID(void) {
 	MAID[2] = getRegAddr(0, 0, 0, 0x0c);
 }
 void     EE::testModul(void) {															// prints register.h content on console
-	#ifdef EE_DBG																		// only if ee debug is set
+	#ifdef EE_DBGaa																		// only if ee debug is set
 	dbg << '\n' << pLine;
 	dbg << F("register.h - lists\n");
 	dbg << pLine;
@@ -336,6 +339,7 @@ uint8_t  EE::getIdxByPeer(uint8_t cnl, uint8_t *peer) {
 }
 uint8_t  EE::getPeerByIdx(uint8_t cnl, uint8_t idx, uint8_t *peer) {
 	getEEPromBlock(peerTbl[cnl-1].pAddr+(idx*4), 4, peer);
+	return *peer;
 }
 uint8_t  EE::addPeer(uint8_t cnl, uint8_t *peer) {
 	uint8_t lPeer[4];
@@ -463,8 +467,7 @@ void     EE::clearRegs(void) {
 		// calculate full length of peer indexed channels and clear the memory
 		clearEEPromBlock(cnlTbl[i].pAddr, peerMax * cnlTbl[i].sLen);
 
-		//dbg << i << ": " << peerMax << ", addr: " << cnlTbl[i].pAddr << ", len: " \
-		//    << (peerMax * cnlTbl[i].sLen) << '\n';
+		//dbg << i << ": " << peerMax << ", addr: " << cnlTbl[i].pAddr << ", len: " << (peerMax * cnlTbl[i].sLen) << '\n';
 	}
 }
 uint8_t  EE::countRegListSlc(uint8_t cnl, uint8_t lst) {
@@ -583,8 +586,8 @@ uint8_t  EE::setListArray(uint8_t cnl, uint8_t lst, uint8_t idx, uint8_t len, ui
 				break;																	// go to the next i
 			}
 		}
-
 	}
+	return 1;
 }
 uint8_t  EE::getRegListIdx(uint8_t cnl, uint8_t lst) {
 	for (uint8_t i = 0; i < devDef.lstNbr; i++) {										// steps through the cnlTbl

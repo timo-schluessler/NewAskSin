@@ -12,6 +12,8 @@
 #include "HAL.h"
 #include <util/delay.h>
 
+#define CC_DBG
+
 class CC {
 	friend class AS;
 	friend class SN;
@@ -158,6 +160,8 @@ class CC {
 	void    setIdle(void);																	// put CC1101 into power-down state
 	uint8_t detectBurst(void);																// detect burst signal, sleep while no signal, otherwise stay awake
 
+	void setGdo0High() { writeReg(CC1101_IOCFG0, 0x6f); }
+	void setGdo0Low() { writeReg(CC1101_IOCFG0, 0x2f); }
   protected:	//---------------------------------------------------------------------------------------------------------
   private:		//---------------------------------------------------------------------------------------------------------
 

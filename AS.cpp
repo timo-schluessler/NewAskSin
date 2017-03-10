@@ -11,8 +11,12 @@
 
 #include "AS.h"
 
+#define SHOWCASE_LIGHT _BV(PD2)
+
 waitTimer cnfTmr;																			// config timer functionality
 waitTimer pairTmr;																			// pair timer functionality
+waitTimer readoutTimer;
+waitTimer testTimer;
 
 // public:		//---------------------------------------------------------------------------------------------------------
 AS::AS() {
@@ -22,29 +26,60 @@ void AS::init(void) {
 		dbgStart();																			// serial setup
 		dbg << F("AS.\n");																	// ...and some information
 	#endif
-	
+
 	initLeds();																				// initialize the leds
-	initConfKey();																			// initialize the port for getting config key interrupts
+	//initConfKey();																			// initialize the port for getting config key interrupts
+	DDRD |= SHOWCASE_LIGHT;
+	PORTD |= SHOWCASE_LIGHT;
 
 	ee.init();																				// eeprom init
 	cc.init();																				// init the rf module
 
 	sn.init(this);																			// send module
 	rv.init(this);																			// receive module
-	rg.init(this);																			// module registrar
-	confButton.init(this);																	// config button
+	//rg.init(this);																			// module registrar
+	//confButton.init(this);																	// config button
 	pw.init(this);																			// power management
-	bt.init(this);																			// battery check
+	//bt.init(this);																			// battery check
 	
 	initMillis();																			// start the millis counter
+
+	readoutTimer.set(1000);
+	testTimer.set(100);
 
 	// everything is setuped, enable RF functionality
 	enableGDO0Int();																		// enable interrupt to get a signal while receiving data
 }
+
+extern bool startNewReadout;
+extern bool newReadoutValue;
+extern uint32_t kWhReadout;
+extern uint32_t m3Readout;
+
 void AS::poll(void) {
 
+	static uint8_t last_gdo0 = 0;
+	uint8_t cur_gdo0 = PINB & _BV(PORTB1);
+#if 0
+	if (cur_gdo0 != last_gdo0) {
+		dbg << "gdo0 is now" << cur_gdo0 << '\n';
+		last_gdo0 = cur_gdo0;
+	}
+#endif
+#if 0
+	if (testTimer.done()) {
+		testTimer.set(1000);
+		if (cur_gdo0)
+			cc.setGdo0Low();
+		else
+			cc.setGdo0High();
+	}
+#endif
+
 	// check if something received
-	if (ccGetGDO0()) {																		// check if something was received
+	if (testTimer.done() || ccGetGDO0()) {																		// check if something was received
+		testTimer.set(5000);
+		//dbg << "ccGetGDO0 is true";
 		cc.rcvData(rv.buf);																	// copy the data into the receiver module
 		if (rv.hasData) decode(rv.buf);														// decode the string
 	}
@@ -55,12 +90,23 @@ void AS::poll(void) {
 
 	// handle the slice send functions
 	if (stcSlice.active) sendSliceList();													// poll the slice list send function
-	if (stcPeer.active) sendPeerMsg();														// poll the peer message sender
+	//if (stcPeer.active) sendPeerMsg();														// poll the peer message sender
 	
 	// time out the config flag
 	if (cFlag.active) {																		// check only if we are still in config mode
 		if (cnfTmr.done()) cFlag.active = 0;												// when timer is done, set config flag to inactive
 	}
+
+	if (readoutTimer.done() && !startNewReadout) {
+		startNewReadout = true;
+		readoutTimer.set((uint32_t)ee.getRegAddr(0, 0, 0, 0x0d) * 5 * 1000);
+		//newReadoutValue = true; // only for testing
+		if (isEmpty(MAID, 3))
+			sendDEVICE_INFO();												// send pairing string
+	}
+	if (newReadoutValue)
+		if (sendREADOUT())
+			newReadoutValue = false;
 
 	// time out the pairing timer
 	if (pairActive) { 
@@ -71,10 +117,10 @@ void AS::poll(void) {
 	}
 
 	// regular polls
-	rg.poll();																				// poll the channel module handler
-	confButton.poll();																		// poll the config button
+	//rg.poll();																				// poll the channel module handler
+	//confButton.poll();																		// poll the config button
 	ld.poll();																				// poll the led's
-	bt.poll();																				// poll the battery check
+	//bt.poll();																				// poll the battery check
 		
 	// check if we could go to standby
 	pw.poll();																				// poll the power management
@@ -152,7 +198,7 @@ void AS::sendACK_STATUS(uint8_t cnl, uint8_t stat, uint8_t dul) {
 	sn.mBdy.by10 = 0x01;
 	sn.mBdy.by11 = cnl;
 	sn.mBdy.pyLd[0] = stat;
-	sn.mBdy.pyLd[1] = dul | (bt.getStatus() << 7);
+	sn.mBdy.pyLd[1] = dul; // | (bt.getStatus() << 7);
 	sn.mBdy.pyLd[2] = cc.rssi;
 	sn.active = 1;																			// fire the message
 	// --------------------------------------------------------------------
@@ -215,6 +261,7 @@ void AS::sendINFO_ACTUATOR_STATUS(uint8_t cnl, uint8_t stat, uint8_t cng) {
 	sn.active = 1;																			// fire the message
 	// --------------------------------------------------------------------
 }
+#if 0
 void AS::sendINFO_TEMP(void) {
 	//"10;p01=0A"   => { txt => "INFO_TEMP", params => {
 	//SET     => '2,4,$val=(hex($val)>>10)&0x3F',
@@ -285,6 +332,49 @@ void AS::sendSensor_event(uint8_t cnl, uint8_t burst, uint8_t *pL) {
 	stcPeer.active = 1;
 	// --------------------------------------------------------------------
 }
+#endif
+
+uint8_t AS::sendREADOUT()
+{
+	if (sn.active)
+		return false;
+	// description --------------------------------------------------------
+	// l> 0B 40 B0 01 63 19 63 1F B7 4A 01 0E (148552)
+	//                 reID      toID          cnl  stat cng  RSSI
+	// l> 0E 40 A4 10  1F B7 4A  63 19 63  06  01   00   00   48 (148679)
+	// l> 0A 40 80 02 63 19 63 1F B7 4A 00 (148804)
+	// do something with the information ----------------------------------
+
+	// description --------------------------------------------------------
+	//                 reID      toID      BLL  Cnt  Val
+	// l> 0C 0A A4 41  23 70 EC  1E 7A AD  02   01   200
+
+	sn.mBdy.mLen = 11 + 8;
+	sn.mBdy.mCnt = sn.msgCnt++;
+	*(uint8_t*)&sn.mBdy.mFlg = 0;
+	sn.mBdy.mFlg.BIDI = (isEmpty(MAID,3))?0:1;
+	
+	sn.mBdy.mTyp = 0x41;
+	memcpy(sn.mBdy.reID, HMID, 3);
+	memcpy(sn.mBdy.toID, MAID, 3);
+	
+	sn.mBdy.by10 = 0x02;
+	sn.mBdy.by11 = 0;
+	sn.mBdy.pyLd[0] = (kWhReadout >>  0) & 0xff;
+	sn.mBdy.pyLd[1] = (kWhReadout >>  8) & 0xff;
+	sn.mBdy.pyLd[2] = (kWhReadout >> 16) & 0xff;
+	sn.mBdy.pyLd[3] = (kWhReadout >> 24) & 0xff;
+	sn.mBdy.pyLd[4] = (m3Readout >>  0) & 0xff;
+	sn.mBdy.pyLd[5] = (m3Readout >>  8) & 0xff;
+	sn.mBdy.pyLd[6] = (m3Readout >> 16) & 0xff;
+	sn.mBdy.pyLd[7] = (m3Readout >> 24) & 0xff;
+	sn.active = 1;																			// fire the message
+
+	return true;
+
+	// --------------------------------------------------------------------
+}
+
 /**
  * @brief Send an event with arbitrary payload
  *
@@ -308,7 +398,7 @@ void AS::send_generic_event(uint8_t cnl, uint8_t burst, uint8_t mTyp, uint8_t le
         // do something with the information ----------------------------------
         if (len>16) {
         	#ifdef AS_DBG
-		dbg << "AS::send_generic_event("<<cnl<<","<<burst<<",0x"<<_HEX(&mTyp,1)<<","<<len<<",...): payload exceeds maximum length of 16\n";
+		dbg << F("AS::send_generic_event(")<<cnl<<F(",")<<burst<<F(",0x")<<_HEX(&mTyp,1)<<F(",")<<len<<F(",...): payload exceeds maximum length of 16\n");
 		#endif
 		len= 16;
         }
@@ -322,6 +412,7 @@ void AS::send_generic_event(uint8_t cnl, uint8_t burst, uint8_t mTyp, uint8_t le
 	stcPeer.active = 1;
 	// --------------------------------------------------------------------
 }
+#if 0
 void AS::sendSensorData(void) {
 	//"53"          => { txt => "SensorData"  , params => {
 	//CMD => "00,2",
@@ -354,6 +445,7 @@ void AS::sendWeatherEvent(void) {
 	//HUM      => '04,2,$val=(hex($val))', } },
 	// --------------------------------------------------------------------
 }
+#endif
 
 // private:		//---------------------------------------------------------------------------------------------------------
 // - poll functions --------------------------------
@@ -362,13 +454,16 @@ void AS::sendSliceList(void) {
 
 	uint8_t cnt;
 
+#if 0
 	if        (stcSlice.peer) {			// INFO_PEER_LIST
 		cnt = ee.getPeerListSlc(stcSlice.cnl, stcSlice.curSlc, sn.buf+11);					// get the slice and the amount of bytes
 		sendINFO_PEER_LIST(cnt);															// create the body
 		stcSlice.curSlc++;																	// increase slice counter
 		//dbg << "peer slc: " << _HEX(sn.buf,sn.buf[0]+1) << '\n';							// write to send buffer
 
-	} else if (stcSlice.reg2) {			// INFO_PARAM_RESPONSE_PAIRS
+	} else
+#endif
+	if (stcSlice.reg2) {			// INFO_PARAM_RESPONSE_PAIRS
 		cnt = ee.getRegListSlc(stcSlice.cnl, stcSlice.lst, stcSlice.idx, stcSlice.curSlc, sn.buf+11); // get the slice and the amount of bytes
 		//dbg << "cnt: " << cnt << '\n';
 		sendINFO_PARAM_RESPONSE_PAIRS(cnt);
@@ -430,7 +525,7 @@ void AS::sendPeerMsg(void) {
 
 
 	// exit while bit is not set
-	if (!stcPeer.slt[stcPeer.curIdx >> 3] & (1<<(stcPeer.curIdx & 0x07))) {
+	if (!(stcPeer.slt[stcPeer.curIdx >> 3] & (1<<(stcPeer.curIdx & 0x07)))) {
 		stcPeer.curIdx++;																	// increase counter for next time
 		return;
 	}
@@ -439,7 +534,7 @@ void AS::sendPeerMsg(void) {
 	ee.getPeerByIdx(stcPeer.cnl, stcPeer.curIdx, tPeer);
 	
 	#ifdef AS_DBG
-		dbg << "a: " << stcPeer.curIdx << " m " << stcPeer.maxIdx << '\n';
+		dbg << F("a: ") << stcPeer.curIdx << F(" m ") << stcPeer.maxIdx << '\n';
 	#endif
 
 	if (isEmpty(tPeer,4)) {																	// if peer is 0, set done bit in slt and skip
@@ -456,7 +551,7 @@ void AS::sendPeerMsg(void) {
 	// expectAES       =>{a=>  1.7,s=>0.1,l=>4,min=>0  ,max=>1       ,c=>'lit'      ,f=>''      ,u=>''    ,d=>1,t=>"expect AES"        ,lit=>{off=>0,on=>1}},
 	// fillLvlUpThr    =>{a=>  4.0,s=>1  ,l=>4,min=>0  ,max=>255     ,c=>''         ,f=>''      ,u=>''    ,d=>1,t=>"fill level upper threshold"},
 	// fillLvlLoThr    =>{a=>  5.0,s=>1  ,l=>4,min=>0  ,max=>255     ,c=>''         ,f=>''      ,u=>''    ,d=>1,t=>"fill level lower threshold"},
-	l4_0x01 = *(s_l4_0x01*)ee.getRegAddr(stcPeer.cnl, 4, stcPeer.curIdx, 0x01);
+	*(uint8_t*)&l4_0x01 = ee.getRegAddr(stcPeer.cnl, 4, stcPeer.curIdx, 0x01);
 	
 	prepPeerMsg(tPeer, 1);
 	
@@ -491,7 +586,7 @@ void AS::prepPeerMsg(uint8_t *xPeer, uint8_t retr) {
 	memcpy(sn.mBdy.reID, HMID, 3);															// sender id
 	memcpy(sn.mBdy.toID, xPeer, 3);															// receiver id
 	sn.mBdy.by10 = stcPeer.cnl;
-	sn.mBdy.by10 |= (bt.getStatus() << 7);													// battery bit
+	//sn.mBdy.by10 |= (bt.getStatus() << 7);													// battery bit
 	memcpy(sn.buf+11, stcPeer.pL, stcPeer.lenPL);											// payload
 	
 	sn.maxRetr = retr;																		// send only one time
@@ -500,8 +595,8 @@ void AS::prepPeerMsg(uint8_t *xPeer, uint8_t retr) {
 
 // - receive functions -----------------------------
 void AS::recvMessage(void) {
-	uint8_t by10 = rv.mBdy.by10 -1;
-	uint8_t cnl1 = cFlag.cnl-1;
+	//uint8_t by10 = rv.mBdy.by10 -1;
+	//uint8_t cnl1 = cFlag.cnl-1;
 
 	// check which type of message was received
 	if         (rv.mBdy.mTyp == 0x00) {										// DEVICE_INFO
@@ -512,7 +607,9 @@ void AS::recvMessage(void) {
 
 		// --------------------------------------------------------------------
 
-	} else if ((rv.mBdy.mTyp == 0x01) && (rv.mBdy.by11 == 0x01)) {			// CONFIG_PEER_ADD
+	}
+	else if ((rv.mBdy.mTyp == 0x01) && (rv.mBdy.by11 == 0x01)) {			// CONFIG_PEER_ADD
+#if 0
 		// description --------------------------------------------------------
 		//                                  Cnl      PeerID    PeerCnl_A  PeerCnl_B
 		// l> 10 55 A0 01 63 19 63 01 02 04 01   01  1F A6 5C  06         05
@@ -529,8 +626,12 @@ void AS::recvMessage(void) {
 		if ((ret) && (rv.ackRq)) sendACK();													// send appropriate answer
 		else if (rv.ackRq) sendNACK();
 		// --------------------------------------------------------------------
+#else
+		sendNACK();
+#endif
 
 	} else if ((rv.mBdy.mTyp == 0x01) && (rv.mBdy.by11 == 0x02)) {			// CONFIG_PEER_REMOVE
+#if 0
 		// description --------------------------------------------------------
 		//                                  Cnl      PeerID    PeerCnl_A  PeerCnl_B
 		// l> 10 55 A0 01 63 19 63 01 02 04 01   02  1F A6 5C  06         05
@@ -538,9 +639,13 @@ void AS::recvMessage(void) {
 	
 		uint8_t ret = ee.remPeer(rv.mBdy.by10,rv.buf+12);									// call the remPeer function
 		if (rv.ackRq) sendACK();															// send appropriate answer
+#else
+			sendNACK();
+#endif
 		// --------------------------------------------------------------------
 
 	} else if ((rv.mBdy.mTyp == 0x01) && (rv.mBdy.by11 == 0x03)) {			// CONFIG_PEER_LIST_REQ
+#if 0
 		// description --------------------------------------------------------
 		//                                  Cnl
 		// l> 0B 05 A0 01 63 19 63 01 02 04 01  03
@@ -554,6 +659,9 @@ void AS::recvMessage(void) {
 		stcSlice.active = 1;																// start the send function
 		// answer will send from sendsList(void)
 		// --------------------------------------------------------------------
+#else
+		sendNACK();
+#endif
 
 	} else if ((rv.mBdy.mTyp == 0x01) && (rv.mBdy.by11 == 0x04)) {			// CONFIG_PARAM_REQ
 		// description --------------------------------------------------------
@@ -573,8 +681,8 @@ void AS::recvMessage(void) {
 		stcSlice.reg2 = 1;																	// set the type of answer
 		
 		#ifdef AS_DBG
-			dbg << "cnl: " << rv.mBdy.by10 << " s: " << stcSlice.idx << '\n';
-			dbg << "totSlc: " << stcSlice.totSlc << '\n';
+			dbg << F("cnl: ") << rv.mBdy.by10 << F(" s: ") << stcSlice.idx << '\n';
+			dbg << F("totSlc: ") << stcSlice.totSlc << '\n';
 		#endif
 
 		if ((stcSlice.idx != 0xff) && (stcSlice.totSlc > 0)) stcSlice.active = 1;			// only send register content if something is to send															// start the send function
@@ -612,11 +720,13 @@ void AS::recvMessage(void) {
 		if ((cFlag.cnl == 0) && (cFlag.idx == 0)) ee.getMasterID();
 		// remove message id flag to config in send module
 
+#if 0
 		if ((cFlag.cnl > 0) && (modTbl[cnl1].cnl)) {
 			// check if a new list1 was written and reload, no need for reload list3/4 because they will be loaded on an peer event
 			if (cFlag.lst == 1) ee.getList(cFlag.cnl, 1, cFlag.idx, modTbl[cnl1].lstCnl); // load list1 in the respective buffer
 			modTbl[cnl1].mDlgt(0x01, 0, 0x06, NULL, 0);								// inform the module of the change
 		}
+#endif
 		
 		if (rv.ackRq) sendACK();															// send appropriate answer
 		// --------------------------------------------------------------------
@@ -632,16 +742,16 @@ void AS::recvMessage(void) {
 			
 			if ((cFlag.cnl == 0) && (cFlag.lst == 0)) {										// check if we got somewhere in the string a 0x0a, as indicator for a new masterid
 				uint8_t maIdFlag = 0;				
-				for (uint8_t i = 0; i < (rv.buf[0]+1-11); i+=2) {
+				for (uint8_t i = 0; i < (rv.buf[0]-11); i+=2) { // TODO timo: +1 removed
 					if (rv.buf[12+i] == 0x0a) maIdFlag = 1;
 					#ifdef AS_DBG
-						dbg << "x" << i << " :" << _HEXB(rv.buf[12+i]) << '\n';
+						dbg << F("x") << i << F(" :") << _HEXB(rv.buf[12+i]) << '\n';
 					#endif
 				}
 				if (maIdFlag) {
 					ee.getMasterID();
 					#ifdef AS_DBG
-						dbg << "new masterid\n" << '\n';
+						dbg << F("new masterid\n");
 					#endif
 				}
 				
@@ -675,11 +785,7 @@ void AS::recvMessage(void) {
 		// do something with the information ----------------------------------
 
 		// check if a module is registered and send the information, otherwise report an empty status
-		if (modTbl[by10].cnl) {
-			modTbl[by10].mDlgt(rv.mBdy.mTyp, rv.mBdy.by10, rv.mBdy.by11, rv.mBdy.pyLd, rv.mBdy.mLen-11);
-		} else {
-			sendINFO_ACTUATOR_STATUS(rv.mBdy.by10, 0, 0);	
-		}
+		sendINFO_ACTUATOR_STATUS(rv.mBdy.by10, PORTD & SHOWCASE_LIGHT, 0); // TODO output
 		// --------------------------------------------------------------------
 
 	} else if ((rv.mBdy.mTyp == 0x02) && (rv.mBdy.by10 == 0x00)) {			// ACK
@@ -730,10 +836,12 @@ void AS::recvMessage(void) {
 		// do something with the information ----------------------------------
 
 		// for test
+#if 0
 		static uint8_t x2[2];
 		x2[0] = 0x02;
 		x2[1] += 1;
 		sendREMOTE(1,1,x2);
+#endif
 
 		// --------------------------------------------------------------------
 
@@ -753,9 +861,9 @@ void AS::recvMessage(void) {
 		// l> 0E 5E 80 02 1F B7 4A 63 19 63 01 01 C8 80 41 
 		// do something with the information ----------------------------------
 
-		if (modTbl[rv.mBdy.by11-1].cnl) {
-			modTbl[rv.mBdy.by11-1].mDlgt(rv.mBdy.mTyp, rv.mBdy.by10, rv.mBdy.by11, rv.buf+12, rv.mBdy.mLen-11);
-		}
+		// TODO set output
+		PORTC = (PORTD & ~SHOWCASE_LIGHT) | (rv.mBdy.pyLd[0] ? SHOWCASE_LIGHT : 0);
+		sendACK_STATUS(rv.mBdy.by11, PORTD & SHOWCASE_LIGHT, 0);
 		// --------------------------------------------------------------------
 
 	} else if ((rv.mBdy.mTyp == 0x11) && (rv.mBdy.by10 == 0x03)) {			// STOP_CHANGE
@@ -827,6 +935,7 @@ void AS::recvMessage(void) {
 		// --------------------------------------------------------------------
 
 	} else if  (rv.mBdy.mTyp >= 0x3E) {										// 3E SWITCH, 3F TIMESTAMP, 40 REMOTE, 41 SENSOR_EVENT, 53 SENSOR_DATA, 58 CLIMATE_EVENT, 70 WEATHER_EVENT
+#if 0
 		// description --------------------------------------------------------
 		//                 from      to        cnl  cnt
 		// p> 0B 2D B4 40  23 70 D8  01 02 05  06   05 - Remote
@@ -872,6 +981,9 @@ void AS::recvMessage(void) {
 
 		}
 		// --------------------------------------------------------------------
+#else
+		sendNACK();
+#endif
 
 	}
 

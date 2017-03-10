@@ -1,10 +1,15 @@
 #define SER_DBG
 
+#include "SoftSerial.h"
+#include "Arduino.h"
 //- load library's --------------------------------------------------------------------------------------------------------
 #include <AS.h>																				// the asksin framework
 #include "register.h"																		// configuration sheet
+#include "readout.h"
+#define SER_DBG
 
 //waitTimer xTmr;
+
 
 //- arduino functions -----------------------------------------------------------------------------------------------------
 void setup() {
@@ -13,23 +18,38 @@ void setup() {
 	// - Hardware setup ---------------------------------------
 	// - everything off ---------------------------------------
 
-	//EIMSK = 0;																			// disable external interrupts
+	EIMSK = 0;																			// disable external interrupts
+	UCSR0A = 0;
+	UCSR0B = 0;
+	UCSR0C = 0;
 	//ADCSRA = 0;																			// ADC off
-	//power_all_disable();																	// and everything else
+	power_all_disable();																	// and everything else
 	
 	//DDRB = DDRC = DDRD = 0x00;															// everything as input
 	//PORTB = PORTC = PORTD = 0x00;															// pullup's off
 
 	// todo: timer0 and SPI should enable internally
 	power_timer0_enable();
+	power_timer2_enable();
 	power_spi_enable();																		// enable only needed functions
+	power_usart0_enable();
 
 	// enable only what is really needed
 
+/*
+	TCCR0A = 0;
+	TCCR0B = 0;
+	TCCR1A = 0;
+	TCCR1B = 0;
+	TCCR2A = 0;
+	TCCR2B = 0;
+	TIMSK0 = 0;
+	ADCSRA = 0;
+	*/
 
 	#ifdef SER_DBG
 		dbgStart();																			// serial setup
-		dbg << F("HM_LC_Bl1_SM\n");
+		dbg << F("Timos Homematic Smart reader\n");
 		dbg << F(LIB_VERSION_STRING);
 		_delay_ms (50);																		// ...and some information
 	#endif
@@ -39,7 +59,7 @@ void setup() {
 	hm.init();																				// init the asksin framework
 
 
-	sei();																					// enable interrupts
+	//sei();																					// enable interrupts
 
 	
 	// - user related -----------------------------------------
@@ -49,44 +69,22 @@ void setup() {
 	
 }
 
+
+void serialEvent();
 void loop() {
 	// - AskSin related ---------------------------------------
 	hm.poll();																				// poll the homematic main loop
+	serialEvent();
+	pollReadout();
 	
-
+	if (PIND & _BV(PD0)) // display RXD on led
+		setPinLow(LED_RED_PORT, LED_RED_PIN);
+	else
+		setPinHigh(LED_RED_PORT, LED_RED_PIN);
 	// - user related -----------------------------------------
 
 }
 
-
-//- user functions --------------------------------------------------------------------------------------------------------
-void initBlind(uint8_t channel) {
-	#ifdef SER_DBG
-		dbg << F("initDim: ") << channel << "\n";
-	#endif
-		
-	power_timer2_enable();																	// enable the timer2 in power management
-	
-	pinOutput(DDRD,3);																		// init the relay pins
-	//setPinLow(PORTD,3);
-	
-	TCCR2B |= (1<<CS21);																	// configure the PWM for the respective output pin
-	OCR2B = 0x00;
-	TCCR2A |= 1<<COM2B1;
-
-}
-void switchBlind(uint8_t channel, uint8_t status) {
-	#ifdef SER_DBG
-		dbg << F("switchDim: ") << channel << ", " << status << "\n";
-	#endif
-
-	uint16_t x = status*255;
-	x /= 200;																				// status = 0 to 200, but PWM needs 255 as maximum
-	OCR2B = x;																				// set the PWM value to the pin
-
-	//if (status) setPinHigh(PORTD,3);														// here you could switch on an additional power supply
-	//else setPinLow(PORTD,3);
-}
 
 //- predefined functions --------------------------------------------------------------------------------------------------
 void serialEvent() {

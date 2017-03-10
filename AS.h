@@ -14,7 +14,7 @@
 #include "EEprom.h"
 #include "Send.h"
 #include "Receive.h"
-#include "Registrar.h"
+//#include "Registrar.h"
 #include "ConfButton.h"
 #include "StatusLed.h"
 #include "Power.h"
@@ -39,18 +39,18 @@
 class AS {
 	friend class SN;
 	friend class RV;
-	friend class RG;
+	//friend class RG;
 	friend class PW;
 
   public:		//---------------------------------------------------------------------------------------------------------
 	EE ee;			///< eeprom module
 	SN sn;			///< send module
-	RG rg;			///< user module registrar
-	CB confButton;		///< config button
+	//RG rg;			///< user module registrar
+	//CB confButton;		///< config button
 	LD ld;			///< status led
 	PW pw;			///< power management
 	CC cc;			///< load communication module
-	BT bt;
+	//BT bt;
 
   protected:	//---------------------------------------------------------------------------------------------------------
   private:		//---------------------------------------------------------------------------------------------------------
@@ -128,6 +128,8 @@ class AS {
 	void sendNACK(void);
 	void sendNACK_TARGET_INVALID(void);
 	void sendINFO_ACTUATOR_STATUS(uint8_t cnl, uint8_t stat, uint8_t cng);
+	uint8_t sendREADOUT(void);
+#if 0
 	void sendINFO_TEMP(void);
 	void sendHAVE_DATA(void);
 	void sendSWITCH(void);
@@ -138,6 +140,7 @@ class AS {
 	void sendClimateEvent(void);
 	void sendSetTeamTemp(void);
 	void sendWeatherEvent(void);
+#endif
 	void send_generic_event(uint8_t cnl, uint8_t burst, uint8_t mTyp, uint8_t len, uint8_t *pL);
 	
   private:		//---------------------------------------------------------------------------------------------------------
@@ -199,7 +202,7 @@ extern AS hm;
  */
 class waitTimer {
 
-  private:		//---------------------------------------------------------------------------------------------------------
+  public:		//---------------------------------------------------------------------------------------------------------
 	uint8_t  armed;
 	uint32_t checkTime;
 	uint32_t startTime;

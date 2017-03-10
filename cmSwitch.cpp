@@ -5,6 +5,7 @@
 //- AskSin relay class ----------------------------------------------------------------------------------------------------
 //- with a lot of support from martin876 at FHEM forum
 //- -----------------------------------------------------------------------------------------------------------------------
+#if 0
 
 //#define RL_DBG																			// debug message flag
 #include "cmSwitch.h"
@@ -372,3 +373,4 @@ void cmSwitch::peerAddEvent(uint8_t *data, uint8_t len) {
 		if (data[1]) hm->ee.setList(regCnl, 3, data[4], (uint8_t*)peerSingle);
 	}
 }
+#endif

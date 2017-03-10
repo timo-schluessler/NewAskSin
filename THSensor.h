@@ -11,15 +11,6 @@
 #include "AS.h"
 #include "HAL.h"
 
-// default settings for list3 or list4
-const uint8_t peerOdd[] =    {
-};
-const uint8_t peerEven[] =   {
-};
-const uint8_t peerSingle[] = {
-};
-
-
 class THSensor {
   //- user code here ------------------------------------------------------------------------------------------------------
   public://----------------------------------------------------------------------------------------------------------------

@@ -8,6 +8,7 @@
 #ifndef _HAL_H
 	#define _HAL_H
 
+#include "SoftSerial.h"
 	#if defined(ARDUINO) && ARDUINO >= 100
 		#include "Arduino.h"
 	#else
@@ -29,12 +30,12 @@
 		#include "HAL_atmega328P.h"
 	#elif defined(__AVR_ATmega32U4__)
 		#include "HAL_atmega32U4.h"
+	#elif defined(__AVR_ATmega168A__)
+		#include "HAL_atmega168A.h"
 	#else
 		#error "No HAL definition for current MCU available!"
 	#endif
 	//- -----------------------------------------------------------------------------------------------------------------------
-
-	static uint16_t wdtSleep_TIME;
 
 	//- timer functions -------------------------------------------------------------------------------------------------------
 	// https://github.com/zkemble/millis/blob/master/millis/
@@ -74,7 +75,7 @@
 
 	//- some macros for debugging ---------------------------------------------------------------------------------------------
 	// http://aeroquad.googlecode.com/svn/branches/pyjamasam/WIFIReceiver/Streaming.h
-	#define dbg Serial
+	#define dbg MySoftSerial
 	template<class T> inline Print &operator <<(Print &obj, T arg) { obj.print(arg); return obj; }
 
 	#define hiHexB(x)  char((x>>4)>9?(x>>4)+55:(x>>4)+48)

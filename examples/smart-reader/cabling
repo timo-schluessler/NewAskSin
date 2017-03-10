@@ -1,0 +1,11 @@
++5V bn
+MOSI wh
+
+SCK gn
+GND wh
+
++3V3 bu
+MISO wh
+
+CS orange
+GDO0 wh

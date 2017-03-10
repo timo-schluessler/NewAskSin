@@ -29,7 +29,7 @@ package usrRegs;
 
 my %listTypes = (
 	#regDev    => { burstRx=>1, intKeyVisib=>1, pairCentral=>1, localResDis=>1,
-	regDev    => { burstRx=>1, intKeyVisib=>1, pairCentral=>1, 
+	regDev    => { burstRx=>0, intKeyVisib=>1, pairCentral=>1, 
 	},
 
 	regSwitch => { sign=>1, longPress=>1, dblPress=>1,

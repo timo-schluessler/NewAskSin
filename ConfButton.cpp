@@ -122,7 +122,7 @@ void CB::outSignal(uint8_t mode) {
 	if (mode == 1) {						// keyShortSingle
 
 		if (scn == 1) pHM->sendDEVICE_INFO();												// send pairing string
-		if ((scn == 2) && (modTbl[0].cnl)) modTbl[0].mDlgt(0,1,0,NULL,0);					// send toggle to user module registered on channel 1
+		//if ((scn == 2) && (modTbl[0].cnl)) modTbl[0].mDlgt(0,1,0,NULL,0);					// send toggle to user module registered on channel 1
 		
 	} else if (mode == 2) {					// keyShortDouble
 		
@@ -140,7 +140,7 @@ void CB::outSignal(uint8_t mode) {
 		pHM->ld.set(nothing);
 
 		// 0x18 localResDis available, take care of it
-		uint8_t localResDis = pHM->ee.getRegAddr(0,0,0,0x18);								// get register address
+		//uint8_t localResDis = pHM->ee.getRegAddr(0,0,0,0x18);								// get register address
 		//dbg << "x:" << localResDis <<'\n';
 		//if (localResDis) return;															// if local reset is disabled, reset
 

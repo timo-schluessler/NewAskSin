@@ -6,6 +6,7 @@
 //- with a lot of support from martin876 at FHEM forum
 //- -----------------------------------------------------------------------------------------------------------------------
 
+#if 0
 //#define BL_DBG																			// debug message flag
 #include <cmBlind.h>
 
@@ -595,3 +596,4 @@ void cmBlind::firstStart(void) {
 	dbg << F("firstStart\n");
 	//#endif
 }
+#endif

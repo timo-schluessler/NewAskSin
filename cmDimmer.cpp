@@ -5,6 +5,7 @@
 //- AskSin dimmer class ----------------------------------------------------------------------------------------------------
 //- with a lot of support from martin876 at FHEM forum
 //- -----------------------------------------------------------------------------------------------------------------------
+#if 0
 
 //#define DI_DBG																			// debug message flag
 #include "cmDimmer.h"
@@ -614,3 +615,4 @@ void cmDimmer::firstStart(void) {
 	dbg << F("firstStart\n");
 	//#endif
 }
+#endif
