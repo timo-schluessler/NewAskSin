@@ -202,13 +202,15 @@ send_bit:
 		timer_tx_ctr = tmp;
 	} else {
 		if (tx_in != tx_out) {
-			char ch = tx_buf[tx_out]; // TODO maybe we should use vu8 here?
-			if (++tx_out == SOFTUART_OUT_BUF_SIZE)
-				tx_out = 0;
+			uint8_t cur_tx_out = tx_out;
+			char ch = tx_buf[cur_tx_out]; // TODO maybe we should use vu8 here?
+			if (++cur_tx_out == SOFTUART_OUT_BUF_SIZE)
+				cur_tx_out = 0;
+			vu8(tx_out) = cur_tx_out;
 			// invoke_UART_transmit
 			timer_tx_ctr       = 3;
 			bits_left_in_tx    = TX_NUM_OF_BITS;
-			internal_tx_buffer = ( ch << 1 ) | 0x200;
+			internal_tx_buffer = ( (uint8_t)ch << 1 ) | 0x200;
 			flag_tx_busy       = SU_TRUE;
 			goto send_bit;
 		}

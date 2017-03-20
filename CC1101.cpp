@@ -40,8 +40,8 @@ void    CC::init(void) {																// initialize CC1101
 	static const uint8_t initVal[] PROGMEM = {
 		CC1101_IOCFG2,    0x2E,	// 												// non inverted GDO2, high impedance tri state
 //		CC1101_IOCFG1,    0x2E,	// (default)									// low output drive strength, non inverted GD=1, high impedance tri state
-		//CC1101_IOCFG0,    0x06,	// packet CRC ok. orignal				// disable temperature sensor, non inverted GDO0,
-		CC1101_IOCFG0,    0x07,	// this is packet CRC ok. try it								// disable temperature sensor, non inverted GDO0,
+		CC1101_IOCFG0,    0x06,	// packet CRC ok. orignal				// disable temperature sensor, non inverted GDO0,
+		//CC1101_IOCFG0,    0x07,	// this is packet CRC ok. try it								// disable temperature sensor, non inverted GDO0,
 		//CC1101_IOCFG0,    0x6f,	// 6f/2f: always high/low 
 		CC1101_FIFOTHR,   0x0D,													// 0 ADC retention, 0 close in RX, TX FIFO = 9 / RX FIFO = 56 byte
 		CC1101_SYNC1,     0xE9,													// Sync word
@@ -192,7 +192,7 @@ uint8_t CC::rcvData(uint8_t *buf) {														// read data packet from RX FIF
 	//	trx868.rfState = RFSTATE_RX;													// declare to be in Rx state
 
 	#ifdef CC_DBG																		// only if cc debug is set
-	if (buf[0] > 0) dbg << _HEX(buf, buf[0]+1) << '\n';//pTime();
+	//if (buf[0] > 0) dbg << _HEX(buf, buf[0]+1) << '\n';//pTime();
 	#endif
 
 	return buf[0];																		// return the data buffer

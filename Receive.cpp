@@ -61,7 +61,7 @@ void	RV::poll(void) {
 	}
 	last_rCnt = this->mBdy.mLen;
 
-	pHM->recvMessage();
+	pHM->recvMessage(bIntend);
 
 	this->mBdy.mLen = 0;
 }

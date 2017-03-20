@@ -62,7 +62,9 @@ void SN::poll(void) {
 			uint8_t tBurst = this->mBdy.mFlg.BURST;											// get burst flag, while string will get encoded
 			pHM->encode(this->buf);															// encode the string
 			// TODO only needed when IOCFG0 is 06? disableGDO0Int();
+			disableGDO0Int();
 			pHM->cc.sndData(this->buf,tBurst);												// send to communication module
+			enableGDO0Int();
 			// TODO enableGDO0Int();
 			pHM->decode(this->buf);															// decode the string, so it is readable next time
 			

@@ -151,7 +151,7 @@ class AS {
 	void prepPeerMsg(uint8_t *xPeer, uint8_t retr);
 			
 	// - receive functions -----------------------------
-	void recvMessage(void);
+	void recvMessage(uint8_t bIntend);
 
 	// - send functions --------------------------------
 	void sendINFO_SERIAL(void);

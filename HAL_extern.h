@@ -23,18 +23,18 @@ uint8_t ccSendByte(uint8_t data) {
 uint8_t ccGetGDO0() {
 	uint8_t x = chkPCINT(CC_GDO0_PCIE, CC_GDO0_INT, 0);							// check PCINT without debouncing
 	if (x>1)
-	dbg << F("GDO0 x:") << x << '\n';
+	dbg << F("GDO0 x:") << x << '\n'; // TODO reception isn't possible without this!!!!
 
 	if (x == 2 ) return 1;														// falling edge detected
 	else return 0;
 }
 
 void    enableGDO0Int(void) {
-	dbg << F("enable GDO0 int\n");
+	//dbg << F("enable GDO0 int\n");
 	CC_GDO0_PCMSK |=  _BV(CC_GDO0_INT);
 }
 void    disableGDO0Int(void) {
-	dbg << F("disable GDO0 int\n");
+	//dbg << F("disable GDO0 int\n");
 	CC_GDO0_PCMSK &= ~_BV(CC_GDO0_INT);
 }
 

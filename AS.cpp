@@ -474,7 +474,7 @@ void AS::sendSliceList(void) {
 
 	}
 
-	if (stcSlice.curSlc == stcSlice.totSlc) {												// if everything is send, we could empty the struct
+	if (stcSlice.curSlc >= stcSlice.totSlc) {												// if everything is send, we could empty the struct
 		memset((void*)&stcSlice, 0, 10);													// by memset
 		//dbg << "end: " << stcSlice.active << stcSlice.peer << stcSlice.reg2 << stcSlice.reg3 << '\n';
 	}
@@ -594,12 +594,23 @@ void AS::prepPeerMsg(uint8_t *xPeer, uint8_t retr) {
 }
 
 // - receive functions -----------------------------
-void AS::recvMessage(void) {
+void AS::recvMessage(uint8_t bIntend) {
 	//uint8_t by10 = rv.mBdy.by10 -1;
 	//uint8_t cnl1 = cFlag.cnl-1;
 
 	// check which type of message was received
-	if         (rv.mBdy.mTyp == 0x00) {										// DEVICE_INFO
+	if ((rv.mBdy.mTyp == 0x01) && (rv.mBdy.by11 == 0x0A)) {			// PAIR_SERIAL
+		// description --------------------------------------------------------
+		//                                         serial
+		// b> 15 93 B4 01 63 19 63 00 00 00 01 0A  4B 45 51 30 32 33 37 33 39 36
+		// do something with the information ----------------------------------
+		if (compArray(rv.buf+12,HMSR,10)) sendDEVICE_INFO();								// compare serial and send device info
+		// --------------------------------------------------------------------
+	}
+	else if (bIntend != 'm') { // only listen to messages by our master. (not braodcasts or peers which we don't have!)
+		return;
+	}
+	else if (rv.mBdy.mTyp == 0x00) {										// DEVICE_INFO
 		// description --------------------------------------------------------
 		//
 		//
@@ -685,7 +696,7 @@ void AS::recvMessage(void) {
 			dbg << F("totSlc: ") << stcSlice.totSlc << '\n';
 		#endif
 
-		if ((stcSlice.idx != 0xff) && (stcSlice.totSlc > 0)) stcSlice.active = 1;			// only send register content if something is to send															// start the send function
+		if ((stcSlice.idx != 0xff) /*&& (stcSlice.totSlc > 0)*/) stcSlice.active = 1;			// only send register content if something is to send															// start the send function
 		else memset((void*)&stcSlice, 0, 10);												// otherwise empty variable
 		// --------------------------------------------------------------------
 
@@ -766,14 +777,6 @@ void AS::recvMessage(void) {
 		// l> 0B 77 A0 01 63 19 63 01 02 04 00 09
 		// do something with the information ----------------------------------
 		sendINFO_SERIAL();																	// jump to create the answer
-		// --------------------------------------------------------------------
-
-	} else if ((rv.mBdy.mTyp == 0x01) && (rv.mBdy.by11 == 0x0A)) {			// PAIR_SERIAL
-		// description --------------------------------------------------------
-		//                                         serial
-		// b> 15 93 B4 01 63 19 63 00 00 00 01 0A  4B 45 51 30 32 33 37 33 39 36
-		// do something with the information ----------------------------------
-		if (compArray(rv.buf+12,HMSR,10)) sendDEVICE_INFO();								// compare serial and send device info
 		// --------------------------------------------------------------------
 
 	} else if ((rv.mBdy.mTyp == 0x01) && (rv.mBdy.by11 == 0x0E)) {			// CONFIG_STATUS_REQUEST
