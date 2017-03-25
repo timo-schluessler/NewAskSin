@@ -75,10 +75,10 @@ void    ledGrn(uint8_t stat) {
 
 
 struct  s_pcINT {
-	uint8_t cur;
+	uint8_t volatile cur;
 	uint8_t prev;
-	uint32_t time;
-} static volatile pcInt[3];
+	uint32_t volatile time;
+} static pcInt[3];
 
 //- pin related functions -------------------------------------------------------------------------------------------------
 
@@ -147,17 +147,17 @@ void    initConfKey(void) {
 //- -----------------------------------------------------------------------------------------------------------------------
 ISR (PCINT0_vect) {
 	pcInt[0].cur = PINB;
-	pcInt[0].time = getMillis();
+	//pcInt[0].time = getMillis();
 	//dbg << "i1:" << PINB  << "\n";
 }
 ISR (PCINT1_vect) {
 	pcInt[1].cur = PINC;
-	pcInt[1].time = getMillis();
+	//pcInt[1].time = getMillis();
 	//dbg << "i2:" << PINC << "\n";
 }
 ISR (PCINT2_vect) {
 	pcInt[2].cur = PIND;
-	pcInt[2].time = getMillis();
+	//pcInt[2].time = getMillis();
 	//dbg << "i3:" << PIND  << "\n";
 }
 //- -----------------------------------------------------------------------------------------------------------------------

@@ -216,6 +216,7 @@ send_bit:
 		}
 	}
 
+#if 0
 	// Receiver Section
 	if ( flag_rx_off == SU_FALSE ) {
 		if ( flag_rx_waiting_for_stop_bit ) {
@@ -259,6 +260,7 @@ send_bit:
 			}
 		}
 	}
+#endif
 }
 
 static void io_init(void)

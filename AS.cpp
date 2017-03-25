@@ -30,7 +30,7 @@ void AS::init(void) {
 	initLeds();																				// initialize the leds
 	//initConfKey();																			// initialize the port for getting config key interrupts
 	DDRD |= SHOWCASE_LIGHT;
-	PORTD |= SHOWCASE_LIGHT;
+	//PORTD |= SHOWCASE_LIGHT;
 
 	ee.init();																				// eeprom init
 	cc.init();																				// init the rf module
@@ -865,7 +865,7 @@ void AS::recvMessage(uint8_t bIntend) {
 		// do something with the information ----------------------------------
 
 		// TODO set output
-		PORTC = (PORTD & ~SHOWCASE_LIGHT) | (rv.mBdy.pyLd[0] ? SHOWCASE_LIGHT : 0);
+		PORTD = (PORTD & ~SHOWCASE_LIGHT) | (rv.mBdy.pyLd[0] ? SHOWCASE_LIGHT : 0);
 		sendACK_STATUS(rv.mBdy.by11, PORTD & SHOWCASE_LIGHT, 0);
 		// --------------------------------------------------------------------
 
