@@ -34,15 +34,15 @@ const uint8_t devIdnt[] PROGMEM = {
 //- ----------------------------------------------------------------------------------------------------------------------
 //- channel slice address definition -------------------------------------------------------------------------------------
 const uint8_t cnlAddr[] PROGMEM = {
-    0x0a,0x0b,0x0c,0x0d
+    0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,0x10
 };
 // 0x0a - 0x0c is HMID of master
-// 0x0d is delay between smart meter readouts in 5s steps
+// 0x0d - 0x0e is delay between smart meter readouts in 5s steps
 
 //- channel device list table --------------------------------------------------------------------------------------------
 EE::s_cnlTbl cnlTbl[] = {
     // cnl, lst, sIdx, sLen, pAddr, hidden
-    { 0, 0, 0x00,  4, 0x001f, 0, },
+    { 0, 0, 0x00, 7, 0x001f, 0, },
     //{ 1, 1, 0x06,  4, 0x0025, 0, },
 };  // 21 byte
 
@@ -85,7 +85,7 @@ void firstTimeStart(void) {
 	Serial << F("first time start\n");
 	uint8_t list0defaults[] = {
 		0x00,0x00,0x00, //  0x0a, Master-ID, leave at 000000 to allow for pairing
-		60,             //  0x0d, update energy consupmtion every 60 * 5 seconds
+		0,0,0xea,0x60             //  0x0d, update energy consupmtion every 60 * 5 seconds
 	};
 	hm.ee.setList(0,0,0,list0defaults);
 }

@@ -99,7 +99,8 @@ void AS::poll(void) {
 
 	if (readoutTimer.done() && !startNewReadout) {
 		startNewReadout = true;
-		readoutTimer.set((uint32_t)ee.getRegAddr(0, 0, 0, 0x0d) * 5 * 1000);
+		readoutTimer.set(((uint32_t)ee.getRegAddr(0, 0, 0, 0x0d) << 24) + ((uint32_t)ee.getRegAddr(0, 0, 0, 0x0e) << 16) + ((uint32_t)ee.getRegAddr(0, 0, 0, 0x0f) << 8) + ((uint32_t)ee.getRegAddr(0, 0, 0, 0x10) << 0));
+		//readoutTimer.set(5000);
 		//newReadoutValue = true; // only for testing
 		if (isEmpty(MAID, 3))
 			sendDEVICE_INFO();												// send pairing string
@@ -607,7 +608,7 @@ void AS::recvMessage(uint8_t bIntend) {
 		if (compArray(rv.buf+12,HMSR,10)) sendDEVICE_INFO();								// compare serial and send device info
 		// --------------------------------------------------------------------
 	}
-	else if (bIntend != 'm') { // only listen to messages by our master. (not braodcasts or peers which we don't have!)
+	else if (!isEmpty(MAID, 3) && bIntend != 'm') { // only listen to messages by our master if one is set. (not braodcasts or peers which we don't have!)
 		return;
 	}
 	else if (rv.mBdy.mTyp == 0x00) {										// DEVICE_INFO
