@@ -37,7 +37,7 @@ const uint8_t cnlAddr[] PROGMEM = {
     0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,0x10
 };
 // 0x0a - 0x0c is HMID of master
-// 0x0d - 0x0e is delay between smart meter readouts in 5s steps
+// 0x0d - 0x10 is delay between smart meter readouts in ms
 
 //- channel device list table --------------------------------------------------------------------------------------------
 EE::s_cnlTbl cnlTbl[] = {
