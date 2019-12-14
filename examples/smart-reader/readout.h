@@ -2,5 +2,6 @@
 #define READOUT_INCLUDED
 
 void pollReadout(void);
+extern bool startNewReadout;
 
 #endif

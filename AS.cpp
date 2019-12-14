@@ -870,11 +870,14 @@ void AS::recvMessage(uint8_t bIntend) {
 		sendACK_STATUS(rv.mBdy.by11, PORTD & SHOWCASE_LIGHT, 0);
 		// --------------------------------------------------------------------
 
-	} else if ((rv.mBdy.mTyp == 0x11) && (rv.mBdy.by10 == 0x03)) {			// STOP_CHANGE
+	} else if ((rv.mBdy.mTyp == 0x11) && (rv.mBdy.by10 == 0x03)) {			// request readout
 		// description --------------------------------------------------------
 		//
 		// b>
 		// do something with the information ----------------------------------
+
+		startNewReadout = true;
+		sendACK();
 
 		// --------------------------------------------------------------------
 

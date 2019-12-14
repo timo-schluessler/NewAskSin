@@ -76,6 +76,7 @@ void loop() {
 	hm.poll();																				// poll the homematic main loop
 	serialEvent();
 	pollReadout();
+	//startNewReadout = true; // for testing and positioning
 	
 	if (PIND & _BV(PD0)) // display RXD on led
 		setPinLow(LED_RED_PORT, LED_RED_PIN);
@@ -91,7 +92,8 @@ void serialEvent() {
 	#ifdef SER_DBG
 	
 	static uint8_t i = 0;																	// it is a high byte next time
-	while (Serial.available()) {
+	while (MySoftSerial.available()) { // geht nicht, timo, 18.12.2019
+		startNewReadout = true;
 		uint8_t inChar = (uint8_t)Serial.read();											// read a byte
 		if (inChar == '\n') {																// send to receive routine
 			i = 0;
