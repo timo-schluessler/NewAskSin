@@ -99,11 +99,13 @@ void AS::poll(void) {
 
 	if (readoutTimer.done() && !startNewReadout) {
 		startNewReadout = true;
+		if (isEmpty(MAID, 3))
+			sendDEVICE_INFO();												// send pairing string
+	}
+	if (startNewReadout) { // always restart timer when starting a new readout, either by readoutTimer itself or by request
 		readoutTimer.set(((uint32_t)ee.getRegAddr(0, 0, 0, 0x0d) << 24) + ((uint32_t)ee.getRegAddr(0, 0, 0, 0x0e) << 16) + ((uint32_t)ee.getRegAddr(0, 0, 0, 0x0f) << 8) + ((uint32_t)ee.getRegAddr(0, 0, 0, 0x10) << 0));
 		//readoutTimer.set(5000);
 		//newReadoutValue = true; // only for testing
-		if (isEmpty(MAID, 3))
-			sendDEVICE_INFO();												// send pairing string
 	}
 	if (newReadoutValue)
 		if (sendREADOUT())
